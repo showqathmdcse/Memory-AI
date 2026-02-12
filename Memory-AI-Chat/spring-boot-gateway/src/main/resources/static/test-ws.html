@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        #messages { 
+            border: 1px solid #ccc; 
+            height: 400px; 
+            overflow-y: scroll; 
+            padding: 10px; 
+            margin: 10px 0;
+            background: #f5f5f5;
+        }
+        .message { 
+            padding: 5px; 
+            margin: 5px 0; 
+            border-left: 3px solid #007bff;
+            background: white;
+        }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px;
+            cursor: pointer;
+        }
+        input { 
+            padding: 10px; 
+            width: 300px;
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test Page</h1>
+    
+    <div id="status" class="status disconnected">Disconnected</div>
+    
+    <button onclick="connect()">Connect WebSocket</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <br><br>
+    
+    <input type="text" id="userId" placeholder="User ID" value="test">
+    <input type="text" id="chatId" placeholder="Chat ID" value="default">
+    <input type="text" id="message" placeholder="Message" value="Hello">
+    <button onclick="sendMessage()">Send Message</button>
+    
+    <h2>WebSocket Messages:</h2>
+    <div id="messages"></div>
+    
+    <script>
+        let ws = null;
+        
+        function connect() {
+            const wsUrl = `ws://${window.location.host}/ws/agent`;
+            console.log('Connecting to:', wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = 'Connected to ' + wsUrl;
+                addMessage('✅ WebSocket connected', 'system');
+            };
+            
+            ws.onmessage = (event) => {
+                console.log('WebSocket message:', event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    addMessage(JSON.stringify(data, null, 2), 'received');
+                } catch (e) {
+                    addMessage(event.data, 'received');
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                addMessage('❌ WebSocket error: ' + error, 'error');
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = 'Disconnected';
+                addMessage('❌ WebSocket disconnected', 'system');
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        async function sendMessage() {
+            const userId = document.getElementById('userId').value;
+            const chatId = document.getElementById('chatId').value;
+            const message = document.getElementById('message').value;
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, chat_id: chatId, message: message })
+                });
+                
+                const data = await response.json();
+                addMessage('📤 Sent message. Response: ' + JSON.stringify(data), 'sent');
+            } catch (error) {
+                addMessage('❌ Error sending message: ' + error, 'error');
+            }
+        }
+        
+        function addMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.style.borderLeftColor = type === 'system' ? '#17a2b8' : 
+                                       type === 'error' ? '#dc3545' : 
+                                       type === 'sent' ? '#28a745' : '#007bff';
+            div.innerHTML = '<pre>' + text + '</pre>';
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+        }
+        
+        // Auto-connect on load
+        window.onload = () => {
+            connect();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # NATS Server for real-time streaming
+  nats:
+    image: nats:latest
+    container_name: nats-streaming
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"  # Client connections (WebSocket)
+      - "8222:8222"  # HTTP monitoring
+      - "6222:6222"  # Cluster connections
+    networks:
+      - app-network
+
+  # Python Agent Service
+  python-agent:
+    image: agent_image:latest
+    container_name: python-agent-service
+    ports:
+      - "8000:8443"
+    networks:
+      - app-network
+    environment:
+      - NATS_URL=nats://nats:4223
+    depends_on:
+      - nats
+
+  # Spring Boot Gateway
+  spring-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-boot-gateway
+    ports:
+      - "8081:8081"  # Gateway port
+    networks:
+      - app-network
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    depends_on:
+      - nats
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  nats-data:

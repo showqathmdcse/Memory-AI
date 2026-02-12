@@ -1,0 +1,19 @@
+INFO:     Will watch for changes in these directories: ['/Users/showqath.nazeer/Documents/development/Development/python-agent-service']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [47540] using WatchFiles
+INFO:     Started server process [47633]
+INFO:     Waiting for application startup.
+2025-12-20 22:41:40,686 - main - INFO - Starting up application...
+2025-12-20 22:41:40,686 - main - INFO - NATS streaming: ENABLED
+2025-12-20 22:41:40,694 - nats_producer - INFO - Created JetStream: AGENT_STREAM
+2025-12-20 22:41:40,694 - nats_producer - INFO - NATS producer initialized successfully
+INFO:     Application startup complete.
+2025-12-20 22:42:00,985 - watchfiles.main - DEBUG - 1 change detected: {(<Change.added: 1>, '/Users/showqath.nazeer/Documents/development/Development/python-agent-service/SPRING_NATS_INTEGRATION.md')}
+2025-12-20 22:42:22,617 - watchfiles.main - DEBUG - 2 changes detected: {(<Change.deleted: 3>, '/Users/showqath.nazeer/Documents/development/Development/python-agent-service/SPRING_NATS_INTEGRATION.md'), (<Change.added: 1>, '/Users/showqath.nazeer/Documents/development/Development/python-agent-service/SPRING_NATS_INTEGRATION.md')}
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-20 22:42:47,155 - main - INFO - Shutting down application...
+2025-12-20 22:42:47,163 - nats_producer - INFO - NATS producer closed
+INFO:     Application shutdown complete.
+INFO:     Finished server process [47633]
+INFO:     Stopping reloader process [47540]

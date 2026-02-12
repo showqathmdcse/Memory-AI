@@ -1,0 +1,166 @@
+version: '3.8'
+
+services:
+  # NATS JetStream Server
+  nats:
+    image: nats:latest
+    container_name: nats-streaming
+    command: ["-js", "-m", "8222", "-sd", "/data"]
+    ports:
+      - "4222:4222"    # Client connections
+      - "8222:8222"    # HTTP monitoring
+      - "6222:6222"    # Cluster connections
+    networks:
+      - agent-network
+    volumes:
+      - nats-data:/data
+    restart: unless-stopped
+
+  # Python Agent Service
+  agent-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agent_image:latest
+    container_name: python-agent-service
+    ports:
+      - "8000:6080"    # Map host 8000 to container 6080
+    environment:
+      # Azure OpenAI Configuration
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT}
+      - AZURE_OPENAI_EMBEDDING_DEPLOYMENT=${AZURE_OPENAI_EMBEDDING_DEPLOYMENT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      
+      # ChromaDB Configuration
+      - CHROMA_URL=${CHROMA_URL}
+      
+      # Server Configuration
+      - HOST=0.0.0.0
+      - PORT=6080
+      - LOG_LEVEL=DEBUG
+      
+      # MCP Configuration
+      - MCP_ENABLED=${MCP_ENABLED}
+      - MCP_SERVER_URL=${MCP_SERVER_URL}
+      - MCP_TIMEOUT=${MCP_TIMEOUT}
+      
+      # Chat History Configuration
+      - CHAT_HISTORY_STORAGE=${CHAT_HISTORY_STORAGE}
+      - CHAT_HISTORY_WINDOW_SIZE=${CHAT_HISTORY_WINDOW_SIZE}
+      
+      # NATS JetStream Streaming Configuration
+      - NATS_STREAMING_ENABLED=true
+      - NATS_URL=nats://nats:4222
+      - NATS_STREAM_NAME=${NATS_STREAM_NAME}
+      - NATS_SUBJECT_MESSAGES=${NATS_SUBJECT_MESSAGES}
+      - NATS_SUBJECT_CODE_CHANGES=${NATS_SUBJECT_CODE_CHANGES}
+      - NATS_MAX_AGE_SECONDS=${NATS_MAX_AGE_SECONDS}
+      - NATS_MAX_MSGS=${NATS_MAX_MSGS}
+      - NATS_MAX_BYTES=${NATS_MAX_BYTES}
+    
+    networks:
+      - agent-network
+    
+    depends_on:
+      - nats
+    
+    volumes:
+      - ./server.log:/app/server.log
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # NATS JetStream Server for Agent AI (macOS compatible with port mapping)
+  nats-ai:
+    image: nats:latest
+    container_name: nats-ai-streaming
+    command: ["-c", "/etc/nats/nats-ai.conf"]
+    ports:
+      - "4223:4222"    # TCP for Spring Boot (external: localhost:4223)
+      - "9222:9222"    # WebSocket for VS Code
+      - "8223:8223"    # HTTP monitoring
+    networks:
+      - agent-network
+    volumes:
+      - nats-ai-data:/data
+      - ./nats-ai.conf:/etc/nats/nats-ai.conf:ro
+    restart: unless-stopped
+
+  # Agent AI Service (connects to NATS via Docker network)
+  agent-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agent-ai:latest
+    container_name: agent-ai-service
+    ports:
+      - "7000:7000"    # Python Agent API
+    networks:
+      - agent-network
+    environment:
+      # Azure OpenAI Configuration
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT}
+      - AZURE_OPENAI_EMBEDDING_DEPLOYMENT=${AZURE_OPENAI_EMBEDDING_DEPLOYMENT}
+      - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+      
+      # ChromaDB Configuration
+      - CHROMA_URL=${CHROMA_URL}
+      
+      # Server Configuration
+      - HOST=0.0.0.0
+      - PORT=7000
+      - LOG_LEVEL=DEBUG
+      
+      # MCP Configuration
+      - MCP_ENABLED=${MCP_ENABLED}
+      - MCP_SERVER_URL=${MCP_SERVER_URL}
+      - MCP_TIMEOUT=${MCP_TIMEOUT}
+      
+      # Chat History Configuration
+      - CHAT_HISTORY_STORAGE=${CHAT_HISTORY_STORAGE}
+      - CHAT_HISTORY_WINDOW_SIZE=${CHAT_HISTORY_WINDOW_SIZE}
+      
+      # NATS JetStream Streaming Configuration (Use Docker network name!)
+      - NATS_STREAMING_ENABLED=true
+      - NATS_URL=nats://nats-ai:4222
+      - NATS_STREAM_NAME=${NATS_STREAM_NAME}
+      - NATS_SUBJECT_MESSAGES=${NATS_SUBJECT_MESSAGES}
+      - NATS_SUBJECT_CODE_CHANGES=${NATS_SUBJECT_CODE_CHANGES}
+      - NATS_MAX_AGE_SECONDS=${NATS_MAX_AGE_SECONDS}
+      - NATS_MAX_MSGS=${NATS_MAX_MSGS}
+      - NATS_MAX_BYTES=${NATS_MAX_BYTES}
+    
+    depends_on:
+      - nats-ai
+    
+    volumes:
+      - ./server.log:/app/server.log
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  agent-network:
+    driver: bridge
+
+volumes:
+  nats-data:
+    driver: local
+  nats-ai-data:
+    driver: local

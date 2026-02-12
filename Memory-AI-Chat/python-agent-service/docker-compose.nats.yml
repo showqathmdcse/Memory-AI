@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  nats:
+    image: nats:latest
+    container_name: nats-server
+    command: 
+      - "-js"  # Enable JetStream
+      - "-m"   # Enable monitoring
+      - "8222" # Monitoring port
+    ports:
+      - "4222:4222"  # Client connections
+      - "8222:8222"  # HTTP monitoring
+      - "6222:6222"  # Cluster connections
+    networks:
+      - nats-network
+    volumes:
+      - nats-data:/data
+    restart: unless-stopped
+
+networks:
+  nats-network:
+    driver: bridge
+
+volumes:
+  nats-data:
+    driver: local
